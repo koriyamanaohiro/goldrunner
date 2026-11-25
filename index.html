@@ -1,0 +1,71 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#080b18"><title>ゴールドランナー 第1ステージ</title><style>*{box-sizing:border-box}body{margin:0;background:#080b18;color:#fff;font-family:system-ui,-apple-system,sans-serif;overscroll-behavior:none;touch-action:none}#app{height:100dvh;display:flex;flex-direction:column;align-items:center;gap:5px;padding:env(safe-area-inset-top) 5px env(safe-area-inset-bottom)}header{width:100%;max-width:680px;display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:13px}header strong{color:#ffd86c}button{touch-action:none;user-select:none;-webkit-user-select:none;border:1px solid #6174a3;background:#202b4c;color:white;border-radius:12px;font-weight:700}header button{padding:7px 10px;font-size:12px}#board{width:min(100%,680px);flex:1;min-height:0;display:flex;align-items:center;justify-content:center}canvas{display:block;width:100%;max-height:100%;object-fit:contain;image-rendering:pixelated;border:2px solid #46557b;background:#060918;touch-action:none}#status{font-size:13px;min-height:20px;color:#fbd67a;text-align:center}.controls{width:min(100%,680px);display:flex;justify-content:space-between;align-items:center;gap:8px;padding:2px 3px 7px}.pad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,53px);gap:5px}.pad button{font-size:25px}.pad .up{grid-column:2;grid-row:1}.pad .left{grid-column:1;grid-row:2}.pad .down{grid-column:2;grid-row:2}.pad .right{grid-column:3;grid-row:2}.dig{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:7px;min-width:0}.dig button{white-space:nowrap;flex-shrink:0}.dig button{width:70px;height:64px;background:#594023;border-color:#a78345;font-size:14px}.hint{font-size:10px;color:#9ba7c6;text-align:center;padding-bottom:3px}@media(max-width:370px){.pad{grid-template-columns:repeat(3,49px);grid-template-rows:repeat(2,49px)}.dig button{width:61px;height:60px}}#overlay{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:20px;z-index:5}#overlay.show{display:flex}.modal{background:#17213b;border:1px solid #6476aa;border-radius:18px;padding:22px;text-align:center;max-width:340px;width:100%}.modal h2{margin:0 0 12px}.modal p{line-height:1.7}.modal button{padding:12px 25px;background:#2c6384}.joystick{width:164px;height:164px;border-radius:50%;border:3px solid #69799e;background:radial-gradient(circle,#344367,#16213e);position:relative;touch-action:none;flex-shrink:0;box-shadow:inset 0 2px 10px #0008;user-select:none;-webkit-user-select:none}.joystick-arrows{position:absolute;inset:0;pointer-events:none;color:#d8e5ff;font-size:23px;font-weight:900}.joystick-arrows span{position:absolute;display:block;line-height:1;text-shadow:0 1px 3px #000}.joystick-arrows .arr-up{top:9px;left:50%;transform:translateX(-50%)}.joystick-arrows .arr-down{bottom:9px;left:50%;transform:translateX(-50%)}.joystick-arrows .arr-left{left:10px;top:50%;transform:translateY(-50%)}.joystick-arrows .arr-right{right:10px;top:50%;transform:translateY(-50%)}.stick{position:absolute;left:calc(50% - 29px);top:calc(50% - 29px);width:58px;height:58px;border-radius:50%;background:linear-gradient(#8398c7,#435983);border:3px solid #b5c7e8;box-shadow:0 3px 8px #0009;pointer-events:none}.controls{padding-bottom:8px}@media(max-height:730px){.joystick{width:124px;height:124px}.stick{width:46px;height:46px;left:calc(50% - 23px);top:calc(50% - 23px)}}@media(max-width:370px){.joystick{width:128px;height:128px}}</style></head><body><div id="app"><header><span>🏆 <strong>GOLD RUNNER</strong> <span id="score">0 / 0</span></span><span id="lives">♥ ♥ ♥</span><div><button id="pause">一時停止</button> <button id="restart">最初から</button></div></header><div id="board"><canvas id="game" width="672" height="480"></canvas></div><div id="status">金塊を全部集めて、出口のハシゴへ！</div><div class="controls"><div class="joystick" id="joystick" aria-label="指を滑らせて上下左右に移動"><div class="joystick-arrows"><span class="arr-up">▲</span><span class="arr-left">◀</span><span class="arr-right">▶</span><span class="arr-down">▼</span></div><div class="stick" id="stick"></div></div><div class="dig"><button data-dig="-1">⛏ 左を掘る</button><button data-dig="1">右を掘る ⛏</button></div></div><div class="hint">丸いパッドを指でぐりぐり動かして移動 ／ Z・Xで穴掘り</div></div><div id="overlay"><div class="modal"><h2 id="modalTitle"></h2><p id="modalText"></p><button id="modalButton">もう一度</button></div></div><script>
+(()=>{'use strict';
+const W=28,H=20,T=24,canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),$=q=>document.querySelector(q);
+// Ladders connect every floor; ropes bridge gaps. All loose gold rests immediately above a platform.
+const rows=[
+'............................',
+'............................',
+'..H......................H..',
+'..H......................H..',
+'..H=========.............H..',
+'..H...G............G.....H..',
+'BBBBBBBBBBBBHBBBBBBBBBBBBBBB',
+'......H.....H.........H.....',
+'......H...............H.....',
+'...G..H=========......H.G...',
+'BBBBBBHBBBBBBBBBBBBBBBHBBBBB',
+'...H============H...........',
+'...H...........H............',
+'...H.G.........H.....G......',
+'BBBHBBBBBBBBBBBHBBBBBBBBBBBB',
+'.....H..............H.......',
+'.....H..............H.......',
+'..G..H==============H...G...',
+'BBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+'............................'];
+let map,holes,gold,enemies,player,total,collected,lives,exit,paused,ended,invuln,clock=0,last=0,acc=0,playerMoveAcc=0,held=null;const keys=new Set();
+const at=(x,y)=>x>=0&&x<W&&y>=0&&y<H?map[y][x]:'B';const key=(x,y)=>x+','+y;const brick=(x,y)=>at(x,y)==='B'&&!holes.has(key(x,y));const ladder=(x,y)=>at(x,y)==='H'||(exit&&x===25&&y>=0&&y<=5);const rope=(x,y)=>at(x,y)==='=';const free=(x,y)=>x>=0&&x<W&&y>=0&&y<H&&!brick(x,y);
+const actor=(x,y,face=1)=>({x,y,px:x,py:y,rx:x,ry:y,face,anim:0,stuck:0,carry:false,respawn:0});
+function reset(full=true){map=rows.map(r=>r.split(''));holes=new Map();gold=[];for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(map[y][x]==='G'){gold.push({x,y,got:false});map[y][x]='.'}enemies=[actor(19,5,-1),actor(17,9,-1),actor(22,16,-1)];enemies[0].carry=true;enemies[2].carry=true;player=actor(3,17);total=gold.length+2;collected=0;if(full)lives=3;exit=false;paused=false;ended=false;invuln=12;clock=0;acc=0;playerMoveAcc=0;keys.clear();held=null;$('#overlay').classList.remove('show');$('#pause').textContent='一時停止';update()}
+function update(){$('#score').textContent=collected+' / '+total;$('#lives').textContent='♥ '.repeat(lives).trim();$('#status').textContent=exit?'脱出ハシゴが右上に出現！ 右上から登ろう！':'金塊を集めよう。敵が持つ金塊は穴で落とそう！'}
+function modal(t,m){ended=true;$('#modalTitle').textContent=t;$('#modalText').textContent=m;$('#overlay').classList.add('show')}
+function drop(e){if(e.carry){e.carry=false;gold.push({x:e.x,y:Math.max(0,e.y-1),got:false})}}
+function dig(d){if(paused||ended)return;const x=player.x+d,y=player.y+1;if(at(x,y)!=='B'||holes.has(key(x,y))||brick(x,y-1))return;holes.set(key(x,y),65);player.face=d}
+function supported(a){return brick(a.x,a.y+1)||ladder(a.x,a.y)||ladder(a.x,a.y+1)||rope(a.x,a.y)}
+function move(a,dir){if(a.stuck||a.respawn)return;let x=a.x,y=a.y;if(dir==='up'){if((ladder(x,y)||ladder(x,y+1))&&free(x,y-1))y--}else if(dir==='down'){if(free(x,y+1)&&(ladder(x,y)||ladder(x,y+1)||!supported(a)))y++}else if(dir==='left'||dir==='right'){const d=dir==='left'?-1:1;if(free(x+d,y))x+=d;a.face=d}a.x=x;a.y=y}
+function gravity(a){if(!a.stuck&&!a.respawn&&!supported(a)&&free(a.x,a.y+1))a.y++}
+function checkHole(e){if(holes.has(key(e.x,e.y))&&brick(e.x,e.y+1)){e.stuck=24;drop(e)}}
+function enemyStep(e){if(e.respawn){e.respawn--;return}if(e.stuck){e.stuck--;if(e.stuck===0){if(free(e.x,e.y-1))e.y--;else e.stuck=3}return}gravity(e);checkHole(e);if(e.stuck)return;const dx=player.x-e.x,dy=player.y-e.y;let options=[];if(dy<0)options.push('up');if(dy>0)options.push('down');if(dx)options.push(dx<0?'left':'right');options.push(e.face<0?'left':'right');options.push(e.face<0?'right':'left');let x=e.x,y=e.y;for(let dir of options){move(e,dir);if(e.x!==x||e.y!==y)break}gravity(e);checkHole(e)}
+function hurt(){if(invuln||ended)return;lives--;update();if(!lives){modal('ゲームオーバー','もう一度挑戦しましょう。');return}player=actor(3,17);invuln=16}
+function step(){if(paused||ended)return;clock++;if(invuln)invuln--;for(let [k,n] of [...holes]){if(n===1){holes.delete(k);const [x,y]=k.split(',').map(Number);if(player.x===x&&player.y===y)hurt();for(let e of enemies)if(e.x===x&&e.y===y){drop(e);e.x=23;e.y=5;e.respawn=8;e.stuck=0}}else holes.set(k,n-1)}const dir=held||['up','down','left','right'].find(k=>keys.has(k));if(dir){playerMoveAcc+=0.55;if(playerMoveAcc>=1){move(player,dir);playerMoveAcc-=1}}else playerMoveAcc=0;gravity(player);for(let g of gold)if(!g.got&&g.x===player.x&&g.y===player.y){g.got=true;collected++;update()}if(collected===total&&!exit){exit=true;update()}if(exit&&player.x===25&&player.y<=1){modal('ステージクリア！','すべての金塊を集めて脱出しました！');return}if(clock%4===0)enemies.forEach(enemyStep);for(let e of enemies)if(!e.stuck&&!e.respawn&&e.x===player.x&&e.y===player.y)hurt()}
+function box(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h)}
+function person(a,enemy,alpha){const x=a.rx*T+12,y=a.ry*T+12;const hanging=rope(a.x,a.y)&&!a.stuck;const motion=Math.sin(a.anim)*4;ctx.save();ctx.translate(x,y);if(a.stuck)ctx.translate(0,5);ctx.strokeStyle=enemy?'#ff625e':'#f4f5ff';ctx.lineWidth=3;ctx.lineCap='round';ctx.fillStyle=enemy?'#ffd0b5':'#ffffff';if(hanging){ctx.translate(0,-7);ctx.fillRect(-3,-7,7,7);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,7);ctx.moveTo(-1,1);ctx.lineTo(-6+motion*.6,-13);ctx.moveTo(1,1);ctx.lineTo(6+motion*.6,-13);ctx.moveTo(0,7);ctx.lineTo(-5,12+motion*.3);ctx.moveTo(0,7);ctx.lineTo(5,12-motion*.3);ctx.stroke();box(-4,0,8,7,enemy?'#e84b4b':'#e9efff')}else{ctx.fillRect(-3,-10,7,7);ctx.beginPath();ctx.moveTo(0,-3);ctx.lineTo(0,5);ctx.moveTo(0,-1);ctx.lineTo(-6,motion*.5+3);ctx.moveTo(0,-1);ctx.lineTo(6,-motion*.5+3);ctx.moveTo(0,5);ctx.lineTo(-4,11+motion*.5);ctx.moveTo(0,5);ctx.lineTo(4,11-motion*.5);ctx.stroke();box(-4,-2,8,7,enemy?'#e84b4b':'#e9efff')}if(enemy)box(-4,7,8,3,'#fff');if(a.carry)box(6,-9,6,6,'#ffe15b');ctx.restore()}
+function draw(alpha){box(0,0,672,480,'#050715');for(let y=0;y<H;y++)for(let x=0;x<W;x++){const t=at(x,y),px=x*T,py=y*T;if(t==='B'&&!holes.has(key(x,y))){box(px,py,T,T,'#1363df');box(px,py,T,2,'#6bb0ff');box(px,py+11,T,2,'#061a49');box(px+11,py,2,11,'#071d56');box(px+4,py+13,2,11,'#071d56')}else if(t==='H'||(exit&&x===25&&y<=5)){box(px+4,py,3,T,'#f4f4fa');box(px+17,py,3,T,'#f4f4fa');box(px+4,py+5,16,3,'#f4f4fa');box(px+4,py+16,16,3,'#f4f4fa')}else if(t==='='){box(px,py-8,T,3,'#e3e6f2');box(px+1,py-5,2,2,'#99a3b7')}}for(let [k,n] of holes){let [x,y]=k.split(',').map(Number);box(x*T,y*T+21,T,3,n<12?'#f5b35b':'#3b68a8')}for(let g of gold)if(!g.got){let x=g.x*T,y=g.y*T;box(x+6,y+9,13,10,'#b88400');box(x+8,y+6,10,10,'#ffe35a');box(x+10,y+8,4,2,'#fff8c3')}for(let e of enemies)person(e,true,alpha);if(invuln%4<2)person(player,false,alpha);if(exit){ctx.fillStyle='#ffda55';ctx.font='bold 13px sans-serif';ctx.fillText('EXIT',25*T-4,14)}if(paused&&!ended){box(0,0,672,480,'#0009');ctx.fillStyle='white';ctx.font='bold 38px sans-serif';ctx.textAlign='center';ctx.fillText('一時停止',336,240);ctx.textAlign='left'}}
+function frame(t){
+ if(!last)last=t;
+ const dt=Math.min(t-last,50);last=t;
+ if(!paused&&!ended){
+   acc+=dt;
+   while(acc>=105){step();acc-=105}
+   // 60fpsの描画でマス間を連続的に移動。ゲームの判定速度は変えない。
+   const blend=1-Math.exp(-dt/105);
+   for(const a of [player,...enemies]){
+     if(a.respawn || Math.abs(a.x-a.rx)>3 || Math.abs(a.y-a.ry)>3){a.rx=a.x;a.ry=a.y;continue}
+     const oldX=a.rx,oldY=a.ry;
+     a.rx+=(a.x-a.rx)*blend;
+     a.ry+=(a.y-a.ry)*blend;
+     const distance=Math.hypot(a.rx-oldX,a.ry-oldY);
+     if(distance>0.0005)a.anim+=distance*12;
+   }
+ }
+ draw(0);requestAnimationFrame(frame)
+}
+const joystick=$('#joystick'),stick=$('#stick');let stickPointer=null;
+function stickMove(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,dist=Math.hypot(dx,dy),limit=r.width*.30,scale=dist>limit?limit/dist:1;stick.style.transform=`translate(${dx*scale}px,${dy*scale}px)`;const dead=r.width*.12;if(dist<dead){held=null;return}held=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')}
+function stickEnd(e){if(stickPointer!==e.pointerId)return;stickPointer=null;held=null;stick.style.transform='translate(0,0)'}
+joystick.addEventListener('pointerdown',e=>{if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;joystick.setPointerCapture(e.pointerId);stickMove(e)});
+joystick.addEventListener('pointermove',e=>{if(stickPointer===e.pointerId){e.preventDefault();stickMove(e)}});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(ev,stickEnd);
+for(let b of document.querySelectorAll('[data-dig]'))b.addEventListener('pointerdown',e=>{e.preventDefault();dig(Number(b.dataset.dig))});const bind={arrowup:'up',w:'up',arrowdown:'down',s:'down',arrowleft:'left',a:'left',arrowright:'right',d:'right'};window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(bind[k]){keys.add(bind[k]);e.preventDefault()}if(k==='z')dig(-1);if(k==='x')dig(1)});window.addEventListener('keyup',e=>{const d=bind[e.key.toLowerCase()];if(d)keys.delete(d)});$('#pause').onclick=()=>{if(ended)return;paused=!paused;$('#pause').textContent=paused?'再開':'一時停止'};$('#restart').onclick=()=>reset();$('#modalButton').onclick=()=>reset();document.addEventListener('visibilitychange',()=>{if(document.hidden&&!ended){paused=true;$('#pause').textContent='再開'}});reset();requestAnimationFrame(frame);
+})();
+</script></body></html>
